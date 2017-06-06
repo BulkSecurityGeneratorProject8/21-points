@@ -41,6 +41,9 @@ public class CacheConfiguration {
             cm.createCache(pl.piznal.health.domain.Authority.class.getName(), jcacheConfiguration);
             cm.createCache(pl.piznal.health.domain.User.class.getName() + ".authorities", jcacheConfiguration);
             cm.createCache(pl.piznal.health.domain.Points.class.getName(), jcacheConfiguration);
+            cm.createCache(pl.piznal.health.domain.Weight.class.getName(), jcacheConfiguration);
+            cm.createCache(pl.piznal.health.domain.BloodPressure.class.getName(), jcacheConfiguration);
+            cm.createCache(pl.piznal.health.domain.Preferences.class.getName(), jcacheConfiguration);
             // jhipster-needle-ehcache-add-entry
         };
     }
