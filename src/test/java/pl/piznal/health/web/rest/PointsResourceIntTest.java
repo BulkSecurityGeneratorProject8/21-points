@@ -1,10 +1,22 @@
 package pl.piznal.health.web.rest;
 
-import pl.piznal.health.Application;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.hasItem;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 
-import pl.piznal.health.domain.Points;
-import pl.piznal.health.repository.PointsRepository;
-import pl.piznal.health.web.rest.errors.ExceptionTranslator;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.List;
+
+import javax.persistence.EntityManager;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -19,16 +31,13 @@ import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.WebApplicationContext;
 
-import javax.persistence.EntityManager;
-import java.time.LocalDate;
-import java.time.ZoneId;
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.Matchers.hasItem;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import pl.piznal.health.Application;
+import pl.piznal.health.domain.Points;
+import pl.piznal.health.repository.PointsRepository;
+import pl.piznal.health.repository.UserRepository;
+import pl.piznal.health.web.rest.errors.ExceptionTranslator;
 
 /**
  * Test class for the PointsResource REST controller.
@@ -56,6 +65,9 @@ public class PointsResourceIntTest {
 
     @Autowired
     private PointsRepository pointsRepository;
+   
+    @Autowired
+    private UserRepository userRepository;
 
     @Autowired
     private MappingJackson2HttpMessageConverter jacksonMessageConverter;
@@ -69,6 +81,9 @@ public class PointsResourceIntTest {
     @Autowired
     private EntityManager em;
 
+    @Autowired
+    private WebApplicationContext context;
+
     private MockMvc restPointsMockMvc;
 
     private Points points;
@@ -76,7 +91,7 @@ public class PointsResourceIntTest {
     @Before
     public void setup() {
         MockitoAnnotations.initMocks(this);
-        PointsResource pointsResource = new PointsResource(pointsRepository);
+        PointsResource pointsResource = new PointsResource(pointsRepository, userRepository);
         this.restPointsMockMvc = MockMvcBuilders.standaloneSetup(pointsResource)
             .setCustomArgumentResolvers(pageableArgumentResolver)
             .setControllerAdvice(exceptionTranslator)
@@ -109,8 +124,13 @@ public class PointsResourceIntTest {
     public void createPoints() throws Exception {
         int databaseSizeBeforeCreate = pointsRepository.findAll().size();
 
+		// Create security-aware mockMvc
+		restPointsMockMvc = MockMvcBuilders.webAppContextSetup(context)
+			.apply(springSecurity())
+			.build();
         // Create the Points
         restPointsMockMvc.perform(post("/api/points")
+        	.with(user("user"))
             .contentType(TestUtil.APPLICATION_JSON_UTF8)
             .content(TestUtil.convertObjectToJsonBytes(points)))
             .andExpect(status().isCreated());
@@ -223,7 +243,13 @@ public class PointsResourceIntTest {
             .alcohol(UPDATED_ALCOHOL)
             .notes(UPDATED_NOTES);
 
+		// Create security-aware mockMvc
+		restPointsMockMvc = MockMvcBuilders.webAppContextSetup(context)
+			.apply(springSecurity())
+			.build();
+        
         restPointsMockMvc.perform(put("/api/points")
+        	.with(user("user"))
             .contentType(TestUtil.APPLICATION_JSON_UTF8)
             .content(TestUtil.convertObjectToJsonBytes(updatedPoints)))
             .andExpect(status().isOk());
